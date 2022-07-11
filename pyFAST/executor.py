@@ -14,9 +14,9 @@ from .utilities import (
     validate_file,
     validate_directory,
     validate_executable,
-    ignore_baseline,
-    load_output,
+    ignore_baseline
 )
+from .fast_io import load_output
 from .case_map import CASE_MAP
 
 

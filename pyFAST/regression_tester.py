@@ -3,7 +3,7 @@ from typing import List, Tuple
 import numpy as np
 from functools import partial
 from multiprocessing.pool import Pool
-from .utilities.norm import calculate_norms, pass_regression_test
+from .norm import calculate_norms, pass_regression_test
 
 
 class RegressionTester:

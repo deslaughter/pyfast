@@ -2,8 +2,6 @@
 
 
 import os
-import sys
-import subprocess
 from stat import ST_MODE
 from time import perf_counter
 
