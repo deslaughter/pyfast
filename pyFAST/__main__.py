@@ -68,7 +68,7 @@ def main():
         type=str,
         nargs="+",
         required=not _list_flag_given,
-        help="Test-produced data file.",
+        help="Target program for the tests.",
     )
     parser.add_argument(
         "--openfast-root",
@@ -115,7 +115,7 @@ def main():
         dest="jobs",
         type=int,
         default=-1,
-        help="Number of cases to run in parallel. Use -1 for 80 pct of available cores",
+        help="Number of cases to run in parallel. Use -1 for 80 percent of available cores",
     )
     parser.add_argument(
         "-v",

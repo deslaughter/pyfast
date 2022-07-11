@@ -1,40 +1,37 @@
-""""Distribution setup"""
-
 
 import os
-
+from pathlib import Path
 from setuptools import setup
 
-ROOT = os.path.abspath(os.path.dirname(__file__))
+ROOT = Path(__file__).parent
 
-with open("README.md", "r") as fh:
+with open(ROOT / "README.md", "r") as fh:
     LONG_DESCRIPTION = fh.read()
 
-with open(os.path.join(ROOT, "VERSION")) as version_file:
+with open(ROOT / "VERSION") as version_file:
     VERSION = version_file.read().strip()
 
 
 setup(
-    name="pyFAST",
-    description="pyFAST",
+    name="openfast-python",
+    description="openfast-python",
     long_description=LONG_DESCRIPTION,
     version=VERSION,
-    url="https://github.com/RHammond2/pyFAST/",
-    author="Rob Hammond",
-    author_email="robert.hammond@nrel.gov",
+    url="https://github.com/rafmudaf/pyFAST/",
+    author="Rafael Mudafort",
+    author_email="rafael.mudafort@nrel.gov",
     classifiers=[
         "Topic :: Utilities",
         "Topic :: Software Development :: Testing",
         "Development Status :: 4 - Beta",
-        "Programming Language :: Python :: 3.6",
-        "Programming Language :: Python :: 3.7",
-        "Topic :: Software Development :: Version Control :: Git",
+        "Programming Language :: Python :: 3.9",
+        "Programming Language :: Python :: 3.10",
     ],
     packages=["pyFAST"],
     python_requires=">=3.6",
-    install_requires=["numpy", "bokeh==1.4.0"],
+    install_requires=["numpy", "bokeh==2.4.3"],
     extras_require={
-        "dev": ["pre-commit", "black", "isort", "pytest", "pytest-cov", "pytest-xdist"]
+        "dev": ["pytest", "pytest-cov", "pytest-xdist"]
     },
     test_suite="pytest",
     tests_require=["pytest", "pytest-xdist", "pytest-cov"],
