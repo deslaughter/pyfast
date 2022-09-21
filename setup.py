@@ -13,8 +13,8 @@ with open(ROOT / "VERSION") as version_file:
 
 
 setup(
-    name="openfast-python",
-    description="openfast-python",
+    name="pyFAST",
+    description="pyFAST",
     long_description=LONG_DESCRIPTION,
     version=VERSION,
     url="https://github.com/rafmudaf/pyFAST/",
@@ -29,7 +29,7 @@ setup(
     ],
     packages=["pyFAST"],
     python_requires=">=3.6",
-    install_requires=["numpy", "bokeh==2.4.3"],
+    install_requires=["numpy", "bokeh==2.4"],
     extras_require={
         "dev": ["pytest", "pytest-cov", "pytest-xdist"]
     },
