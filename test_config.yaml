@@ -1,0 +1,396 @@
+default_case:
+  absolute_tolerance: 1.9 # Allowable absolute orders of magnitude from baseline
+  relative_tolerance: 2 # Allowable relative orders of magnitude from baseline
+  plot: true # Flag to plot results
+
+openfast:
+  input_path: reg_tests/r-test/glue-codes/openfast
+  run_path: build/reg_tests/glue-codes/openfast
+  executable_path: build/glue-codes/openfast/openfast
+  input_file_ext: ".fst"
+  baseline_file_ext: ".outb"
+  cases:
+    AWT_YFix_WSt:
+      labels: openfast;elastodyn;aerodyn14;servodyn
+      turbine_directory: AWT27
+    AWT_WSt_StartUp_HighSpShutDown:
+      labels: openfast;elastodyn;aerodyn15;servodyn
+      turbine_directory: AWT27
+    AWT_YFree_WSt:
+      labels: openfast;elastodyn;aerodyn15;servodyn
+      turbine_directory: AWT27
+    AWT_YFree_WTurb:
+      labels: openfast;elastodyn;aerodyn14;servodyn
+      turbine_directory: AWT27
+    AWT_WSt_StartUpShutDown:
+      labels: openfast;elastodyn;aerodyn15;servodyn
+      turbine_directory: AWT27
+    AOC_WSt:
+      labels: openfast;elastodyn;aerodyn14;servodyn
+      turbine_directory: AOC
+    AOC_YFree_WTurb:
+      labels: openfast;elastodyn;aerodyn15;servodyn
+      turbine_directory: AOC
+    AOC_YFix_WSt:
+      labels: openfast;elastodyn;aerodyn15;servodyn
+      turbine_directory: AOC
+    # UAE_Dnwind_YRamp_WSt:
+    #     labels: openfast;elastodyn;aerodyn14;servodyn
+    #     turbine_directory: UAE_VI
+    UAE_Upwind_Rigid_WRamp_PwrCurve:
+      labels: openfast;elastodyn;aerodyn15;servodyn
+      turbine_directory: UAE_VI
+    WP_VSP_WTurb_PitchFail:
+      labels: openfast;elastodyn;aerodyn14;servodyn
+      turbine_directory: WP_Baseline
+    WP_VSP_ECD:
+      labels: openfast;elastodyn;aerodyn15;servodyn
+      turbine_directory: WP_Baseline
+    WP_VSP_WTurb:
+      labels: openfast;elastodyn;aerodyn15;servodyn
+      turbine_directory: WP_Baseline
+    SWRT_YFree_VS_EDG01:
+      labels: openfast;elastodyn;aerodyn15;servodyn
+      turbine_directory: SWRT
+    SWRT_YFree_VS_EDC01:
+      labels: openfast;elastodyn;aerodyn14;servodyn
+      turbine_directory: SWRT
+    # SWRT_YFree_VS_WTurb:
+    #     labels: openfast;elastodyn;aerodyn14;servodyn
+    #     turbine_directory: SWRT
+    5MW_Land_DLL_WTurb:
+      labels: openfast;elastodyn;aerodyn15;servodyn
+      turbine_directory: 5MW_Baseline
+    5MW_OC3Mnpl_DLL_WTurb_WavesIrr:
+      labels: openfast;elastodyn;aerodyn15;servodyn;hydrodyn;subdyn;offshore
+      turbine_directory: 5MW_Baseline
+    5MW_OC3Trpd_DLL_WSt_WavesReg:
+      labels: openfast;elastodyn;aerodyn15;servodyn;hydrodyn;subdyn;offshore
+      turbine_directory: 5MW_Baseline
+    5MW_OC4Jckt_DLL_WTurb_WavesIrr_MGrowth:
+      labels: openfast;elastodyn;aerodyn15;servodyn;hydrodyn;subdyn;offshore
+      turbine_directory: 5MW_Baseline
+    5MW_ITIBarge_DLL_WTurb_WavesIrr:
+      labels: openfast;elastodyn;aerodyn14;servodyn;hydrodyn;map;offshore
+      turbine_directory: 5MW_Baseline
+    5MW_TLP_DLL_WTurb_WavesIrr_WavesMulti:
+      labels: openfast;elastodyn;aerodyn15;servodyn;hydrodyn;map;offshore
+      turbine_directory: 5MW_Baseline
+    5MW_OC3Spar_DLL_WTurb_WavesIrr:
+      labels: openfast;elastodyn;aerodyn15;servodyn;hydrodyn;map;offshore
+      turbine_directory: 5MW_Baseline
+    5MW_OC4Semi_WSt_WavesWN:
+      labels: openfast;elastodyn;aerodyn15;servodyn;hydrodyn;moordyn;offshore
+      turbine_directory: 5MW_Baseline
+    5MW_Land_BD_DLL_WTurb:
+      labels: openfast;beamdyn;aerodyn15;servodyn
+      turbine_directory: 5MW_Baseline
+    5MW_OC4Jckt_ExtPtfm:
+      labels: openfast;elastodyn;extptfm
+      turbine_directory: 5MW_Baseline
+    HelicalWake_OLAF:
+      labels: openfast;aerodyn15;olaf
+      turbine_directory: HelicalWake_OLAF
+    EllipticalWing_OLAF:
+      labels: openfast;aerodyn15;olaf
+      turbine_directory: EllipticalWing_OLAF
+    StC_test_OC4Semi:
+      labels: openfast;servodyn;hydrodyn;moordyn;offshore;stc
+      turbine_directory: StC_test_OC4Semi
+    IEA_LB_RWT-AeroAcoustics:
+      labels: openfast;aerodyn15;aeroacoustics
+      baseline_file_ext: _2.out
+
+openfast-py:
+  input_path: reg_tests/r-test/glue-codes/openfast
+  run_path: build/reg_tests/glue-codes/python
+  script_path: glue-codes/python/OpenFAST.py
+  lib_path: build/modules/openfast-library
+  baseline_file_ext: ".outb"
+  cases:
+    5MW_Land_DLL_WTurb_py:
+      labels: openfast;fastlib;python;elastodyn;aerodyn15;servodyn
+      input_file: 5MW_Land_DLL_WTurb.fst
+      input_directory: 5MW_Land_DLL_WTurb
+      turbine_directory: 5MW_Baseline
+    5MW_ITIBarge_DLL_WTurb_WavesIrr_py:
+      labels: openfast;fastlib;python;elastodyn;aerodyn14;servodyn;hydrodyn;map;offshore
+      input_file: 5MW_ITIBarge_DLL_WTurb_WavesIrr.fst
+      input_directory: 5MW_ITIBarge_DLL_WTurb_WavesIrr
+      turbine_directory: 5MW_Baseline
+    5MW_TLP_DLL_WTurb_WavesIrr_WavesMulti_py:
+      labels: openfast;fastlib;python;elastodyn;aerodyn15;servodyn;hydrodyn;map;offshore
+      input_file: 5MW_TLP_DLL_WTurb_WavesIrr_WavesMulti.fst
+      input_directory: 5MW_TLP_DLL_WTurb_WavesIrr_WavesMulti
+      turbine_directory: 5MW_Baseline
+    5MW_OC3Spar_DLL_WTurb_WavesIrr_py:
+      labels: openfast;fastlib;python;elastodyn;aerodyn15;servodyn;hydrodyn;map;offshore
+      input_file: 5MW_OC3Spar_DLL_WTurb_WavesIrr.fst
+      input_directory: 5MW_OC3Spar_DLL_WTurb_WavesIrr
+      turbine_directory: 5MW_Baseline
+    5MW_OC4Semi_WSt_WavesWN_py:
+      labels: openfast;fastlib;python;elastodyn;aerodyn15;servodyn;hydrodyn;moordyn;offshore
+      input_file: 5MW_OC4Semi_WSt_WavesWN.fst
+      input_directory: 5MW_OC4Semi_WSt_WavesWN
+      turbine_directory: 5MW_Baseline
+    5MW_Land_BD_DLL_WTurb_py:
+      labels: openfast;fastlib;python;beamdyn;aerodyn15;servodyn
+      input_file: 5MW_Land_BD_DLL_WTurb.fst
+      input_directory: 5MW_Land_BD_DLL_WTurb
+      turbine_directory: 5MW_Baseline
+    HelicalWake_OLAF_py:
+      labels: openfast;fastlib;python;aerodyn15;olaf
+      input_file: HelicalWake_OLAF.fst
+      input_directory: HelicalWake_OLAF
+      turbine_directory: HelicalWake_OLAF
+    EllipticalWing_OLAF_py:
+      labels: openfast;fastlib;python;aerodyn15;olaf
+      input_file: EllipticalWing_OLAF.fst
+      input_directory: EllipticalWing_OLAF
+      turbine_directory: EllipticalWing_OLAF
+
+openfast-lib:
+  input_path: reg_tests/r-test/glue-codes/openfast
+  run_path: build/reg_tests/glue-codes/openfast-lib
+  executable_path: build/glue-codes/openfast/openfast_cpp
+  input_file_ext: ".fst"
+  baseline_file_ext: ".outb"
+  cases:
+    AWT_YFree_WSt_cpp:
+      labels: fastlib;elastodyn;aerodyn15;servodyn;cpp
+      input_file: AWT_YFree_WSt.fst
+      input_directory: AWT_YFree_WSt
+      turbine_directory: AWT27
+
+openfast-cpp:
+  input_path: reg_tests/r-test/glue-codes/openfast
+  run_path: build/reg_tests/glue-codes/openfast_cpp
+  executable_path: build/glue-codes/openfast/openfast-cpp
+  input_file_ext: ".fst"
+  baseline_file_ext: ".outb"
+  cases:
+    5MW_Land_DLL_WTurb_cpp:
+      labels: openfast;fastlib;cpp
+      input_file: 5MW_Land_DLL_WTurb.fst
+      input_directory: 5MW_Land_DLL_WTurb
+      turbine_directory: 5MW_Baseline
+
+openfast-linear:
+  input_path: reg_tests/r-test/glue-codes/openfast
+  run_path: build/reg_tests/glue-codes/openfast
+  executable_path: build/glue-codes/openfast/openfast
+  input_file_ext: ".fst"
+  baseline_file_ext: ".lin"
+  cases:
+    WP_Stationary_Linear:
+      labels: openfast;linear;elastodyn
+      turbine_directory: WP_Baseline
+    Ideal_Beam_Fixed_Free_Linear:
+      labels: openfast;linear;beamdyn
+      turbine_directory: Ideal_Beam
+    Ideal_Beam_Free_Free_Linear:
+      labels: openfast;linear;beamdyn
+      turbine_directory: Ideal_Beam
+    5MW_Land_BD_Linear:
+      labels: openfast;linear;beamdyn;servodyn
+      turbine_directory: 5MW_Baseline
+    5MW_OC4Semi_Linear:
+      labels: openfast;linear;hydrodyn;servodyn
+      turbine_directory: 5MW_Baseline
+    StC_test_OC4Semi_Linear_Nac:
+      labels: openfast;linear;servodyn;stc
+      turbine_directory: StC_test_OC4Semi
+    StC_test_OC4Semi_Linear_Tow:
+      labels: openfast;linear;servodyn;stc
+      turbine_directory: StC_test_OC4Semi
+
+aerodyn:
+  input_path: reg_tests/r-test/modules/aerodyn
+  run_path: build/reg_tests/modules/aerodyn
+  executable_path: build/modules/aerodyn/aerodyn_driver
+  input_file: ad_driver.dvr
+  baseline_file_ext: ".outb"
+  cases:
+    ad_timeseries_shutdown:
+      labels: aerodyn;bem;module
+      driver: aerodyn
+    ad_EllipticalWingInf_OLAF:
+      labels: aerodyn;bem;module
+      driver: aerodyn
+    ad_HelicalWakeInf_OLAF:
+      labels: aerodyn;bem;module
+      driver: aerodyn
+    ad_Kite_OLAF:
+      labels: aerodyn;bem;module
+      driver: aerodyn
+    ad_MultipleHAWT:
+      labels: aerodyn;bem;module
+      driver: aerodyn
+    ad_QuadRotor_OLAF:
+      labels: aerodyn;bem;module
+      driver: aerodyn
+    ad_VerticalAxis_OLAF:
+      labels: aerodyn;bem;module
+      driver: aerodyn
+    ad_BAR_CombinedCases:
+      labels: aerodyn;bem;module
+      driver: aerodyn
+    ad_BAR_OLAF:
+      labels: aerodyn;bem;module
+      driver: aerodyn
+      turbine_directory: BAR_Baseline
+    ad_BAR_SineMotion:
+      labels: aerodyn;bem;module
+      driver: aerodyn
+      turbine_directory: BAR_Baseline
+    ad_BAR_SineMotion_UA4_DBEMT3:
+      labels: aerodyn;bem;module
+      driver: aerodyn
+      turbine_directory: BAR_Baseline
+    ad_BAR_RNAMotion:
+      labels: aerodyn;bem;module
+      driver: aerodyn
+      turbine_directory: BAR_Baseline
+
+beamdyn:
+  input_path: reg_tests/r-test/modules/beamdyn
+  run_path: build/reg_tests/modules/beamdyn
+  executable_path: build/modules/beamdyn/beamdyn_driver
+  input_file: bd_driver.inp
+  baseline_file_ext: ".out"
+  cases:
+    bd_5MW_dynamic:
+      labels: beamdyn;dynamic;module
+      driver: beamdyn
+    bd_5MW_dynamic_gravity_Az00:
+      labels: beamdyn;dynamic;module
+      driver: beamdyn
+    bd_5MW_dynamic_gravity_Az90:
+      labels: beamdyn;dynamic;module
+      driver: beamdyn
+    bd_curved_beam:
+      labels: beamdyn;static;module
+      driver: beamdyn
+    bd_isotropic_rollup:
+      labels: beamdyn;static;module
+      driver: beamdyn
+    bd_static_cantilever_beam:
+      labels: beamdyn;static;module
+      driver: beamdyn
+    bd_static_twisted_with_k1:
+      labels: beamdyn;static;module
+      driver: beamdyn
+
+hydrodyn:
+  input_path: reg_tests/r-test/modules/hydrodyn
+  run_path: build/reg_tests/modules/hydrodyn
+  executable_path: build/modules/hydrodyn/hydrodyn_driver
+  input_file: hd_driver.inp
+  baseline_file_ext: ".out"
+  cases:
+    hd_OC3tripod_offshore_fixedbottom_wavesirr:
+      labels: hydrodyn;offshore;module
+      driver: hydrodyn
+    hd_5MW_ITIBarge_DLL_WTurb_WavesIrr:
+      labels: hydrodyn;offshore;module
+      driver: hydrodyn
+    hd_5MW_OC3Spar_DLL_WTurb_WavesIrr:
+      labels: hydrodyn;offshore;module
+      driver: hydrodyn
+    hd_5MW_OC4Jckt_DLL_WTurb_WavesIrr_MGrowth:
+      labels: hydrodyn;offshore;module
+      driver: hydrodyn
+    hd_5MW_OC4Semi_WSt_WavesWN:
+      labels: hydrodyn;offshore;module
+      driver: hydrodyn
+    hd_5MW_TLP_DLL_WTurb_WavesIrr_WavesMulti:
+      labels: hydrodyn;offshore;module
+      driver: hydrodyn
+    hd_TaperCylinderPitchMoment:
+      labels: hydrodyn;offshore;module
+      driver: hydrodyn
+
+hydrodyn-py:
+  input_path: reg_tests/r-test/modules/hydrodyn
+  run_path: build/reg_tests/modules/hydrodyn
+  baseline_file_ext: ".out"
+  cases:
+    hd_py_5MW_OC4Semi_WSt_WavesWN:
+      labels: hydrodyn;offshore;python
+      input_file: hd_driver.inp
+      script_path: reg_tests/r-test/modules/hydrodyn/hd_py_5MW_OC4Semi_WSt_WavesWN/hydrodyn_driver.py
+
+subdyn:
+  input_path: reg_tests/r-test/modules/subdyn
+  run_path: build/reg_tests/modules/subdyn
+  executable_path: build/modules/subdyn/subdyn_driver
+  input_file_ext: ".dvr"
+  baseline_file_ext: ".out"
+  cases:
+    SD_Cable_5Joints:
+      labels: subdyn;offshore;module
+      driver: subdyn
+    SD_PendulumDamp:
+      labels: subdyn;offshore;module
+      driver: subdyn
+    SD_Rigid:
+      labels: subdyn;offshore;module
+      driver: subdyn
+    SD_SparHanging:
+      labels: subdyn;offshore;module
+      driver: subdyn
+    # TODO Issue #855
+    SD_AnsysComp1_PinBeam:
+      labels: subdyn;offshore;module
+      driver: subdyn
+    SD_AnsysComp2_Cable:
+      labels: subdyn;offshore;module
+      driver: subdyn
+    # TODO Issue #855
+    SD_AnsysComp3_PinBeamCable:
+      labels: subdyn;offshore;module
+      driver: subdyn
+    # TODO test below are bugs, should be added when fixed
+    # SD_Force:
+    #     labels: subdyn;offshore;module
+    #     driver: subdyn
+    # SD_AnsysComp4_UniversalCableRigid:
+    #     labels: subdyn;offshore;module
+    #     driver: subdyn
+    SD_Rigid2Interf_Cables:
+      labels: subdyn;offshore;module
+      driver: subdyn
+
+inflowwind:
+  input_path: reg_tests/r-test/modules/inflowwind
+  run_path: build/reg_tests/modules/inflowwind
+  executable_path: build/modules/inflowwind/inflowwind_driver
+  input_file: ifw_driver.inp
+  baseline_file_ext: ".dat"
+  cases:
+    ifw_turbsimff:
+      labels: inflowwind
+
+inflowwind-py:
+  input_path: reg_tests/r-test/modules/inflowwind
+  run_path: build/reg_tests/modules/inflowwind
+  baseline_file_ext: ".dat"
+  cases:
+    ifw_py_turbsimff:
+      labels: inflowwind;python
+      input_file: ifw_primary.inp
+      script_path: reg_tests/r-test/modules/inflowwind/ifw_py_turbsimff/inflowWind_testDriver.py
+
+fastfarm:
+  input_path: reg_tests/r-test/glue-codes/fast-farm
+  run_path: build/reg_tests/glue-codes/fast-farm
+  executable_path: build/glue-codes/fast-farm/Fast.farm
+  input_file_ext: ".fstf"
+  baseline_file_ext: ".out"
+  cases:
+    TSinflow:
+      labels: fastfarm
+      turbine_directory: 5MW_Baseline
+    LESinflow:
+      labels: fastfarm
+      turbine_directory: 5MW_Baseline
