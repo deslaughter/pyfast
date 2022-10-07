@@ -1,7 +1,6 @@
 """Initialize everything"""
 
 # Import the local packages for external use
-from .case_map import CASE_MAP
 from .executor import Executor
 from .regression_tester import RegressionTester
 from .postprocessor import SummaryHandler
