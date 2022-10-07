@@ -14,9 +14,14 @@
 # limitations under the License.
 #
 
+'''
+Created on 03/09/2015
+@author: MMPE
+Copied from https://github.com/WISDEM/AeroelasticSE/tree/openmdao1/src/AeroelasticSE/old_files on 15 Aug 2016 by Ganesh Vijayakumar
+'''
 import os
-import struct
 import numpy as np
+import struct
 
 
 def load_output(filename):
@@ -41,12 +46,12 @@ def load_output(filename):
     """
 
     assert os.path.isfile(filename), "File, %s, does not exists" % filename
-    with open(filename, "r") as f:
+    with open(filename, 'r') as f:
         if "outb" in filename:
             return load_binary_output(filename)
         elif "out" in filename:
             try:
-                _ = f.readline()
+                f.readline()
             except UnicodeDecodeError:
                 return load_binary_output(filename)
     return load_ascii_output(filename) + (np.ones(1),)
@@ -55,19 +60,15 @@ def load_output(filename):
 def load_ascii_output(filename):
     with open(filename) as f:
         info = {}
-        info["name"] = os.path.splitext(os.path.basename(filename))[0]
-        try:
-            header = [f.readline() for _ in range(8)]
-            info["description"] = header[4].strip()
-            info["attribute_names"] = header[6].split()
-            info["attribute_units"] = [
-                unit[1:-1] for unit in header[7].split()
-            ]  # removing "()"
-            data = np.array([line.split() for line in f.readlines()]).astype(np.float)
-            return data, info
-
-        except (ValueError, AssertionError):
-            raise
+        info['name'] = os.path.splitext(os.path.basename(filename))[0]
+        header = [f.readline() for _ in range(8)]
+        info['description'] = header[4].strip()
+        info['attribute_names'] = header[6].split()
+        info['attribute_units'] = [unit[1:-1]
+                                   for unit in header[7].split()]  # removing "()"
+        data = np.array([line.split()
+                        for line in f.readlines()], dtype=np.float)
+        return data, info
 
 
 def load_binary_output(filename):
@@ -80,85 +81,84 @@ def load_binary_output(filename):
     """
 
     def fread(fid, n, type):
-        fmt, nbytes = {
-            "uint8": ("B", 1),
-            "int16": ("h", 2),
-            "int32": ("i", 4),
-            "float32": ("f", 4),
-            "float64": ("d", 8),
-        }[type]
+        fmt, nbytes = {'uint8': ('B', 1), 'int16': ('h', 2), 'int32': (
+            'i', 4), 'float32': ('f', 4), 'float64': ('d', 8)}[type]
         return struct.unpack(fmt * n, fid.read(nbytes * n))
 
-    FileFmtID_WithTime = 1  # File identifiers used in FAST
+    FileFmtID_WithTime = 1    # File identifiers used in FAST
     FileFmtID_WithoutTime = 2
     FileFmtID_NoCompressWithoutTime = 3
-    LenName = 10  # number of characters per channel name
-    LenUnit = 10  # number of characters per unit name
+    FileFmtID_ChanLen_In = 4
 
-    with open(filename, "rb") as fid:
-        FileID = fread(fid, 1, "int16")[0]  # FAST output file format, INT(2)
-        NumOutChans = fread(fid, 1, "int32")[0]  # The number of output channels, INT(4)
-        NT = fread(fid, 1, "int32")[0]  # The number of time steps, INT(4)
+    with open(filename, 'rb') as fid:
+        # FAST output file format, INT(2)
+        FileID = fread(fid, 1, 'int16')[0]
+
+        if FileID == FileFmtID_ChanLen_In:
+            # Number of characters in channel names and units
+            LenName = fread(fid, 1, 'int16')[0]
+        else:
+            LenName = 10                         # default number of characters per channel name
+
+        # The number of output channels, INT(4)
+        NumOutChans = fread(fid, 1, 'int32')[0]
+        # The number of time steps, INT(4)
+        NT = fread(fid, 1, 'int32')[0]
 
         if FileID == FileFmtID_WithTime:
-            TimeScl = fread(fid, 1, "float64")  # The time slopes for scaling, REAL(8)
-            TimeOff = fread(fid, 1, "float64")  # The time offsets for scaling, REAL(8)
+            # The time slopes for scaling, REAL(8)
+            TimeScl = fread(fid, 1, 'float64')
+            # The time offsets for scaling, REAL(8)
+            TimeOff = fread(fid, 1, 'float64')
         else:
-            TimeOut1 = fread(
-                fid, 1, "float64"
-            )  # The first time in the time series, REAL(8)
-            TimeIncr = fread(fid, 1, "float64")  # The time increment, REAL(8)
+            # The first time in the time series, REAL(8)
+            TimeOut1 = fread(fid, 1, 'float64')
+            TimeIncr = fread(fid, 1, 'float64')  # The time increment, REAL(8)
 
         if FileID != FileFmtID_NoCompressWithoutTime:
-            ColScl = fread(
-                fid, NumOutChans, "float32"
-            )  # The channel slopes for scaling, REAL(4)
-            ColOff = fread(
-                fid, NumOutChans, "float32"
-            )  # The channel offsets for scaling, REAL(4)
+            # The channel slopes for scaling, REAL(4)
+            ColScl = fread(fid, NumOutChans, 'float32')
+            # The channel offsets for scaling, REAL(4)
+            ColOff = fread(fid, NumOutChans, 'float32')
 
-        LenDesc = fread(fid, 1, "int32")[
-            0
-        ]  # The number of characters in the description string, INT(4)
-        DescStrASCII = fread(fid, LenDesc, "uint8")  # DescStr converted to ASCII
+        # The number of characters in the description string, INT(4)
+        LenDesc = fread(fid, 1, 'int32')[0]
+        # DescStr converted to ASCII
+        DescStrASCII = fread(fid, LenDesc, 'uint8')
         DescStr = "".join(map(chr, DescStrASCII)).strip()
 
-        ChanName = []  # initialize the ChanName cell array
+        # initialize the ChanName cell array
+        ChanName = []
         for iChan in range(NumOutChans + 1):
-            ChanNameASCII = fread(
-                fid, LenName, "uint8"
-            )  # ChanName converted to numeric ASCII
+            # ChanName converted to numeric ASCII
+            ChanNameASCII = fread(fid, LenName, 'uint8')
             ChanName.append("".join(map(chr, ChanNameASCII)).strip())
 
-        ChanUnit = []  # initialize the ChanUnit cell array
+        # initialize the ChanUnit cell array
+        ChanUnit = []
         for iChan in range(NumOutChans + 1):
-            ChanUnitASCII = fread(
-                fid, LenUnit, "uint8"
-            )  # ChanUnit converted to numeric ASCII
+            # ChanUnit converted to numeric ASCII
+            ChanUnitASCII = fread(fid, LenName, 'uint8')
             ChanUnit.append("".join(map(chr, ChanUnitASCII)).strip()[1:-1])
 
         # get the channel time series
-        nPts = NT * NumOutChans  # number of data points in the file
+        nPts = NT * NumOutChans                   # number of data points in the file
         if FileID == FileFmtID_WithTime:
-            PackedTime = fread(fid, NT, "int32")  # read the time data
+            PackedTime = fread(fid, NT, 'int32')  # read the time data
             cnt = len(PackedTime)
             if cnt < NT:
-                raise Exception(
-                    "Could not read entire %s file: read %d of %d time values"
-                    % (filename, cnt, NT)
-                )
+                raise Exception('Could not read entire %s file: read %d of %d time values' % (
+                    filename, cnt, NT))
 
         if FileID == FileFmtID_NoCompressWithoutTime:
-            PackedData = fread(fid, nPts, "float64")  # read the channel data
+            PackedData = fread(fid, nPts, 'float64')    # read the channel data
         else:
-            PackedData = fread(fid, nPts, "int16")  # read the channel data
+            PackedData = fread(fid, nPts, 'int16')    # read the channel data
 
         cnt = len(PackedData)
         if cnt < nPts:
             raise Exception(
-                "Could not read entire %s file: read %d of %d values"
-                % (filename, cnt, nPts)
-            )
+                'Could not read entire %s file: read %d of %d values' % (filename, cnt, nPts))
 
     if FileID == FileFmtID_NoCompressWithoutTime:
         pack = np.array(PackedData).reshape(NT, NumOutChans)
@@ -176,33 +176,26 @@ def load_binary_output(filename):
     data = np.concatenate([time.reshape(NT, 1), data], 1)
     pack = np.concatenate([time.reshape(NT, 1), pack], 1)
 
-    info = {
-        "name": os.path.splitext(os.path.basename(filename))[0],
-        "description": DescStr,
-        "attribute_names": ChanName,
-        "attribute_units": ChanUnit,
-    }
+    info = {'name': os.path.splitext(os.path.basename(filename))[0],
+            'description': DescStr,
+            'attribute_names': ChanName,
+            'attribute_units': ChanUnit}
     return data, info, pack
 
 
 if __name__ == "__main__":
-    d, i = load_binary_output("Test18.T1.outb")
+    d, i = load_binary_output('Test18.T1.outb')
     types = []
     for j in range(39):
-        types.append("f8")
-    print(type(i["attribute_names"]))
+        types.append('f8')
+    print(type(i['attribute_names']))
 
-    print(np.dtype({"names": tuple(i["attribute_names"]), "formats": tuple(types)}))
-    print(type(d))
     print(
-        np.array(
-            d,
-            dtype=np.dtype(
-                {"names": tuple(i["attribute_names"]), "formats": tuple(types)}
-            ),
-        )
-    )
+        np.dtype({'names': tuple(i['attribute_names']), 'formats': tuple(types)}))
+    print(type(d))
+    print(np.array(d, dtype=np.dtype(
+        {'names': tuple(i['attribute_names']), 'formats': tuple(types)})))
 
     print(i)
-    print(len(i["attribute_names"]))
+    print(len(i['attribute_names']))
     print(np.shape(d))
