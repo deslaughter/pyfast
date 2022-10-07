@@ -6,11 +6,6 @@ from stat import ST_MODE
 from time import perf_counter
 
 
-def ignore_baseline(_, contents):
-    item_filter = ("linux-intel", "linux-gnu", "macos-gnu", "windows-intel")
-    return [c for c in contents if c in item_filter]
-
-
 def validate_directory(directory: str, create: bool = True):
     """
     Validates if a directory exists.
@@ -58,7 +53,7 @@ def validate_executable(file_path: str):
     Parameters
     ----------
     file_path : str
-        Path to the exectuable file.
+        Path to the executable file.
 
     Raises
     ------
