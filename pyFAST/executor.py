@@ -1,23 +1,23 @@
 
 import os
-import sys
 import shutil
-import platform
 from typing import List, Tuple
-from pathlib import Path
 from multiprocessing import cpu_count
 from multiprocessing.pool import Pool
 from time import perf_counter
 import subprocess
+import glob
+
+import numpy as np
 
 from .utilities import (
     validate_file,
     validate_directory,
-    validate_executable,
-    ignore_baseline
+    validate_executable
 )
 from .fast_io import load_output
-from .case_map import CASE_MAP
+from .regression_tester import passing_channels, calculateNorms
+from .error_plotting import export_case_summary, plot_channel_data
 
 
 class Executor:
@@ -34,12 +34,8 @@ class Executor:
 
     def __init__(
             self,
-            cases: List[str],
-            executable: List[str],
-            openfast_root: str,
-            compiler: str,
-            system: str = None,
-            no_execution: bool = False,
+            cases: List[dict],
+            show_only: bool = False,
             verbose: bool = False,
             jobs: bool = -1,
     ):
@@ -50,25 +46,15 @@ class Executor:
         - There should exist a test pipeline that executes the full regression test process for each case
         - Thats what should be parallelized, not just the case execution
         - As is, the regression test results must wait for all tests to finish executing
-        - We want to be able to bail if one test case fails the regression test but others havent finished
+        - We want to be able to bail if one test case fails the regression test but others haven't finished
 
         - Choose to use str or Path for all paths
 
         Parameters
         ----------
-        case : List[str]
-            Test case name(s) as a list of strings.
-        executable : List[str]
-            Path(s) to the OpenFAST executable(s).
-        openfast_root : str
-            Path to OpenFAST repository.
-        compiler : str
-            System compiler id. Should be one of "intel" or "gnu".
-        system : str
-            Operating system version of results used for comparison, default
-            None (machine's OS). Should be one of "windows", "linux", or
-            "macos".
-        no_execution : bool, default: False
+        cases : List[str]
+            Test cases as a list of dictionaries.
+        show_only : bool, default: False
             Flag to avoid executing the simulations, but proceed with the regression test.
         verbose : bool, default: False
             Flag to include system ouptut.
@@ -78,31 +64,15 @@ class Executor:
              - >0: Minimum of the number passed and the number of nodes available
         """
 
-        # These path variables are used throughout Executor for brevity
-        self.build_directory = os.path.join(openfast_root, "build")
-        self.rtest_modules = os.path.join(openfast_root, "reg_tests", "r-test", "modules")
-        self.rtest_openfast = os.path.join(openfast_root, "reg_tests", "r-test", "glue-codes", "openfast")
-        self.local_test_location = os.path.join(self.build_directory, "reg_tests", "local_results")
-
-        system = platform.system() if system is None else system.lower()
-        if system == "darwin":
-            system = "macos"
-
-        # Cases should be a list of case names ["awt_yfree", "..."]
-        # to run all cases, pass an empty list
-        self.cases = CASE_MAP if not cases else {case: CASE_MAP[case] for case in cases}
-
-        self.output_type = "-".join((system, compiler.lower()))
+        self.cases = cases
         self.verbose = verbose
-        self.no_execution = no_execution
+        self.show_only = show_only
         self.jobs = jobs if jobs != 0 else -1
 
-        for exe in executable:
-            _exe = os.path.basename(os.path.normpath(exe))
-            if "openfast" in _exe:
-                self.of_executable = os.path.abspath(exe)
-            elif "beamdyn_driver" in _exe:
-                self.bd_executable = os.path.abspath(exe)
+        # Set case index
+        for i, case in enumerate(self.cases, 1):
+            case['num'] = i
+            case['index'] = f"{i}/{len(self.cases)}"
 
         self._validate_inputs()
 
@@ -116,30 +86,17 @@ class Executor:
 
     def _validate_inputs(self):
 
-        # Is the output type one of the supported combinations?
-        _options = ("macos-gnu", "linux-intel", "linux-gnu", "windows-intel")
-        if self.output_type not in _options:
-            self.output_type = "macos-gnu"
-            print(f"Defaulting to {self.output_type} for output type")
+        # Loop through cases
+        for case in self.cases:
 
-        # Are the required executables provided in a valid location with correct permissions?
-        _required_executables = set([ CASE_MAP[c]["driver"] for c in self.cases ])
-        if "openfast" in _required_executables:
-            try:
-                assert self.of_executable
-            except AttributeError as error:
-                raise AttributeError("An OpenFAST case was requested but no OpenFAST executable given.")
-            validate_executable(self.of_executable)
+            # Validate path to case executable or script
+            if 'executable_path' in case:
+                validate_executable(case['executable_path'])
+            elif 'script_path' in case:
+                validate_file(case['script_path'])
 
-        if "beamdyn" in _required_executables:
-            try:
-                assert self.bd_executable
-            except AttributeError as error:
-                raise AttributeError("A BeamDyn case was requested but no BeamDyn Driver executable given.")
-            validate_executable(self.bd_executable)
-
-        # Do the given directories exist?
-        validate_directory(self.build_directory)
+            # Validate path to case input directory
+            validate_directory(case['input_path'])
 
         #  Is the jobs flag within the supported range?
         if self.jobs < -1:
@@ -149,125 +106,151 @@ class Executor:
         """
         Copies the input data to the local directories where the tests will be run
         """
+
+        # Create list to hold paths to which turbine directories have been copied
+        turbine_copies = []
+
+        # Loop through cases
         for case in self.cases:
-            case_info = CASE_MAP[case]
 
-            if CASE_MAP[case]["driver"] == "openfast":
-                # Copy the case files
-                destination = os.path.join(self.local_test_location, "glue-codes",  case_info["driver"], case)
-                if not os.path.isdir(destination):
-                    source = os.path.join(self.rtest_openfast, case)
-                    shutil.copytree(source, destination, ignore=ignore_baseline)
-                
-                # Copy the required turbine model
-                destination = os.path.join(self.local_test_location, "glue-codes", case_info["driver"], case_info["turbine_directory"])
-                if not os.path.isdir(destination):
-                    source = os.path.join(self.rtest_openfast, case_info["turbine_directory"])
-                    shutil.copytree(source, destination, ignore=ignore_baseline)
+            # Copy files from driver's input directory to output directory.
+            # Overwrite existing files
+            shutil.copytree(case['input_path'], case['run_path'],
+                            dirs_exist_ok=True)
 
-            else:
-                # Copy the case files
-                destination = os.path.join(self.local_test_location, "modules", case_info["driver"], case)
-                if not os.path.isdir(destination):
-                    source = os.path.join(self.rtest_modules, case_info["driver"], case)
-                    shutil.copytree(source, destination)
+            # Get list of baseline files
+            case['baseline_files'] = \
+                [os.path.basename(f) for f in
+                 glob.glob(os.path.join(case['input_path'],
+                                        '*' + case['baseline_file_ext']))]
+
+            # If no baseline files found, raise exception
+            if len(case['baseline_files']) == 0:
+                raise Exception(
+                    f"no baseline files found for case '{case['name']}'")
+
+            # Remove baseline files from run path
+            for baseline_file in case['baseline_files']:
+                os.remove(os.path.join(case['run_path'], baseline_file))
+
+            # If case has a turbine directory and it hasn't been copied
+            # by a previous case, copy directory and overwrite existing files
+            if 'turbine_run_path' in case:
+                if case['turbine_run_path'] not in turbine_copies:
+                    shutil.copytree(case['turbine_input_path'],
+                                    case['turbine_run_path'],
+                                    dirs_exist_ok=True)
+                    turbine_copies.append(case['turbine_run_path'])
 
     def _execute_case(
-            self,
-            executable: str,
-            case_directory: str,
-            input_file: str,
-            ix: str,
-            case: str,
-            verbose: bool = False,
-        ):
+        self,
+        case: dict,
+        verbose: bool = False,
+    ):
         """
         Runs an OpenFAST regression test case.
 
         Parameters
         ----------
-        executable : str
-            File path to the approptiate executable for this case.
-        case_directory : str
-            Directory containing the test case files.
-        input_file : str
-            Input file for the test case.
-        ix : str
-            String index/total of case being run.
-        case : str
-            Name of the case being run
+        case : dict
+            Dictionary describing case to run
         verbose : bool, optional
             Flag to include verbose output, by default False.
         """
-        cwd = os.getcwd()
-        os.chdir(case_directory)
 
-        stdout = sys.stdout if verbose else open(os.devnull, "w")
+        # Validate that input file exists
+        validate_file(case['input_file_path'])
 
-        validate_file(input_file)
-        executable = os.path.abspath(executable)
-        validate_executable(executable)
+        # Create command to run case
+        if 'executable_path' in case:
+            command = [case['executable_path'], case['input_file']]
+        elif 'script_path' in case:
+            command = ['python', case['script_path'], case['input_file']]
+        else:
+            raise Exception("no executable specified for case")
 
-        base = os.path.sep.join(input_file.split(os.path.sep)[-1].split(".")[:-1])
-        parent = os.path.sep.join(input_file.split(os.path.sep)[:-1])
-        log = os.path.join(parent, "".join((base, ".log")))
+        # Print info for logging
+        msg = (f"{case['index']:>8}  Start: {case['name']}\n" +
+               f"{case['index']:>8}    Cmd: {' '.join(command)}\n" +
+               f"{case['index']:>8}    CWD: {case['run_path']}\n" +
+               f"{case['index']:>8}    Log: {case['log_path']}")
+        print(msg, flush=True)
 
-        command = f"{executable} {input_file} > {log}"
-        print(f"{ix.rjust(6)} Start: {case}")
-        if verbose:
-            print(f"command: {command}")
+        # Get environment to be passed to command, modify if required by case
+        env = os.environ.copy()
+        if 'lib_path' in case:
+            env["PATH"] = case['lib_path'] + os.pathsep + env["PATH"]
 
-        start = perf_counter()
-        code = subprocess.call(command, stdout=stdout, shell=True)
-        end = perf_counter()
-        elapsed = f"{end - start:.2f}"
-        status = "FAILED".rjust(8) if code != 0 else "complete"
-        ix = ix.split("/")[0]
-        message = (
-            f"{ix.rjust(6)}   End: {case.ljust(40, '.')} {status} with code "
-            f"{code}{elapsed.rjust(8)} seconds"
-        )
-        print(message, flush=True)
+        # Run command
+        start_time = perf_counter()
+        with open(case['log_path'], 'w') as w:
+            case['ret_code'] = subprocess.call(command, stdout=w, stderr=w,
+                                               cwd=case['run_path'], env=env)
+        end_time = perf_counter()
 
-        os.chdir(cwd)
+        # Calculate elapsed time
+        case['run_time'] = end_time - start_time
 
-    def _run_case(self, index: str, case: str):
+        # Set flag for run completed successfully
+        case['run_ok'] = case['ret_code'] == 0
+
+        # Set case status based on return code
+        case['status'] = 'COMPLETE' if case['run_ok'] else 'FAILED'
+
+    def _run_case(self, case: dict):
         """
         Runs a single OpenFAST test case
 
         Parameters
         ----------
-        index : str
-            String index as "i/n" for which case is being run.
         case : str
             Case name.
         """
 
-        case_info = CASE_MAP[case]
-        if CASE_MAP[case]["driver"] == "openfast":
-            case_directory = os.path.join(self.local_test_location, "glue-codes", case_info["driver"], case)
-        else:
-            case_directory = os.path.join(self.local_test_location, "modules", case_info["driver"], case)
+        case['status'] = 'None'
+        case['run_ok'] = False
+        case['check_ok'] = False
 
-        if CASE_MAP[case]["driver"] == "beamdyn":
-            exe = self.bd_executable
-            case_input = "bd_driver.inp"
-        elif CASE_MAP[case]["driver"] == "openfast":
-            exe = self.of_executable
-            case_input = "".join((case, ".fst"))
-        else:
-            raise ValueError
+        # Run test case
+        self._execute_case(case, verbose=self.verbose)
 
-        self._execute_case(exe, case_directory, case_input, index, case, verbose=self.verbose)
+        status = ""
+        if self.verbose:
+            for line in open(case['log_path']):
+                status += f"\n{case['index']:>8}    Log: {line}"
+        status = (f"{case['index']:>8}    Run: {case['name'].ljust(42, '.')} {case['status']:<8} with code "
+                  f"{case['ret_code']} {case['run_time']:>8.3f} seconds")
+        if not case['run_ok']:
+            return case, status
 
-    def _run_cases(self):
+        # Compare test case output to baseline
+        self._compare_results_to_baseline(case)
+
+        # Add to status
+        for baseline_file, file_ok in zip(case['baseline_files'], case['check_files_ok']):
+            file_status = "PASSED" if file_ok else 'FAILED'
+            status += f"\n{case['index']:>8}  Check: {baseline_file.ljust(42)} {file_status:<8}"
+        status += f"\n{case['index']:>8}    End: {case['name'].ljust(42, '.')} {case['status']:<8}"
+
+        # Return message to display
+        return case, status
+
+    def _run_cases(self) -> List[dict]:
         """
         Runs all of the OpenFAST cases in parallel, if defined.
         """
-        indeces = [f"{i}/{len(self.cases)}" for i in range(1, len(self.cases) + 1)]
-        arguments = list(zip(indeces, self.cases))
-        with Pool(self.jobs) as pool:
-            pool.starmap(self._run_case, arguments)
+        cases = []
+        if self.jobs == 1:
+            for case, status in map(self._run_case, self.cases):
+                print(status, flush=True)
+                cases.append(case)
+        else:
+            with Pool(self.jobs) as pool:
+                for case, status in pool.imap_unordered(self._run_case, self.cases):
+                    print(status, flush=True)
+                    cases.append(case)
+
+        self.cases = sorted(cases, key=lambda c: c['num'])
 
     def run(self):
         """
@@ -275,68 +258,71 @@ class Executor:
         OpenFAST, then the directories are created if they don't already exist.
         """
 
-        if not self.no_execution:
+        if self.show_only:
+            for case in self.cases:
+                print(f"  Test {case['num']:>3}: {case['name']}")
+            print(f"\nTotal Tests: {len(self.cases)}")
+        else:
             self._build_local_case_directories()
             self._run_cases()
-    
-    def read_output_files(self) -> Tuple[list]:
-        """
-        Reads in the output files corresponding to `case` and returns the
-        cases, baseline outputs, and locally produced outputs.
 
-        Returns
-        -------
-        case_list : list
-            List of valid non-linear regression test cases.
-        baseline_list : List[tuple]
-            List of valid non-linear regression test cases (attribute, data).
-        test_list : List[tuple]
-            List of valid non-linear regression test cases (attribute, data).
-        """
+    def _compare_results_to_baseline(self, case: dict):
 
-        test_list = []
-        baseline_list = []
-        error_list = []
+        case['check_ok'] = True
 
-        # Get the baseline results
-        for case in self.cases:
+        case['check_files_ok'] = []
 
-            case_info = CASE_MAP[case]
-            if CASE_MAP[case]["driver"] == "openfast":
-                results_file = os.path.join(self.rtest_openfast, case, self.output_type, CASE_MAP[case]["reference_output"])
-            else: 
-                results_file = os.path.join(self.rtest_modules, case_info["driver"], case, CASE_MAP[case]["reference_output"])
+        # Loop through baseline files
+        for baseline_file in case['baseline_files']:
 
+            # Create path to baseline and output files
+            baseline_file_path = os.path.join(
+                case['input_path'], baseline_file)
+            out_file_path = os.path.join(case['run_path'], baseline_file)
+
+            # Validate files
             try:
-                validate_file(results_file)
+                validate_file(out_file_path)
+                validate_file(baseline_file_path)
             except FileNotFoundError as error:
-                error_list.append( (case, "Baseline: " + str(error)) )
-            else:
-                data, info, _ = load_output(results_file)
-                baseline_list.append( (data, info) )
+                return f"\x1b[1;31m{case['name']}\x1b[0m: {error}\n"
 
-        # Get the local test results
-        for case in self.cases:
+            # Check output files
+            if case['baseline_file_ext'] in ['.outb', '.out']:
 
-            case_info = CASE_MAP[case]
-            if CASE_MAP[case]["driver"] == "openfast":
-                results_file = os.path.join(self.local_test_location, "glue-codes", case_info["driver"], case, CASE_MAP[case]["reference_output"])
-            else:
-                results_file = os.path.join(self.local_test_location, "modules", case_info["driver"], case, CASE_MAP[case]["reference_output"])
+                # Load output and baseline files
+                out_data, out_info, _ = load_output(out_file_path)
+                baseline_data, _, _ = load_output(baseline_file_path)
 
-            try:
-                validate_file(results_file)
-            except FileNotFoundError as error:
-                error_list.append( (case, "Local: " + str(error)) )
-            else:
-                data, info, _ = load_output(results_file)
-                test_list.append( (data, info) )
+                # Get channel names
+                channel_names = out_info["attribute_names"]
+                channel_units = out_info["attribute_units"]
 
-        if error_list:
-            print("\n\x1b[1;31mErrors:\x1b[0m")
-            for case, e in error_list:
-                case = f"\x1b[1;31m{case}\x1b[0m"
-                print(f"  {case}: {e}")
-            print("")
+                # Determine which channels are passing relative to baseline
+                channels_ok = passing_channels(out_data.T, baseline_data.T,
+                                               case['relative_tolerance'],
+                                               case['absolute_tolerance'])
 
-        return baseline_list, test_list
+                # Calculate norms
+                norms = calculateNorms(out_data, baseline_data)
+
+                # Plot channel data
+                plots = []
+                if case['plot']:
+                    plots = plot_channel_data(channel_names, channel_units, out_data,
+                                              baseline_data, case['relative_tolerance'],
+                                              case['absolute_tolerance'])
+
+                # Export all case summaries
+                export_case_summary(case['run_path'], case['name'],
+                                    channel_names, channels_ok, norms, plots)
+
+                case['check_ok'] &= np.all(channels_ok)
+                case['check_files_ok'].append(np.all(channels_ok))
+                case['status'] = 'PASSED' if case['check_ok'] else 'FAILED'
+
+            # Check linearization files
+            elif case['baseline_file_ext'] == '.lin':
+                case['check_ok'] &= False
+                case['check_files_ok'].append(False)
+                case['status'] = 'NOT_IMPL'
