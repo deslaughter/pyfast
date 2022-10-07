@@ -18,8 +18,10 @@ class RegressionTester:
         case_list: List[str],
         baseline_list: List[Tuple[np.ndarray, list]],
         test_list: List[Tuple[np.ndarray, list]],
-        norm_list: List[str] = ["max_norm", "max_norm_over_range", "l2_norm", "relative_l2_norm"],
-        test_norm_condition: List[str] = ["relative_l2_norm"],  # flag in __main__.py
+        norm_list: List[str] = ["max_norm",
+                                "max_norm_over_range", "l2_norm", "relative_l2_norm"],
+        test_norm_condition: List[str] = [
+            "relative_l2_norm"],  # flag in __main__.py
     ) -> Tuple[List[np.ndarray], List[bool], List[str]]:
         """
         Computes the norms for each of the valid test cases.
@@ -69,9 +71,11 @@ class RegressionTester:
             norm_results = list(pool.starmap(partial_norms, arguments))
 
         norm_ix = [norm_list.index(norm) for norm in test_norm_condition]
-        arguments = [(norm[:, norm_ix], self.tolerance) for norm in norm_results]
+        arguments = [(norm[:, norm_ix], self.tolerance)
+                     for norm in norm_results]
         with Pool(self.jobs) as pool:
-            pass_fail_list = list(pool.starmap(pass_regression_test, arguments))
+            pass_fail_list = list(pool.starmap(
+                pass_regression_test, arguments))
 
         n_fail = len(pass_fail_list) - sum(pass_fail_list)
         fail = []
@@ -88,5 +92,99 @@ class RegressionTester:
             message = f"\x1b[1;31m{ix.rjust(8)} {case}\x1b[0m"
             print(message)
 
-        return norm_results, pass_fail_list, norm_list    
+        return norm_results, pass_fail_list, norm_list
 
+
+def passing_channels(test, baseline, rtol, atol) -> np.ndarray:
+    """
+    test, baseline: arrays containing the results from OpenFAST in the following format
+        [
+            channels,
+            data
+        ]
+    So that test[0,:] are the data for the 0th channel and test[:,0] are the 0th entry in each channel.
+    """
+
+    NUM_EPS = 1e-12
+    ATOL_MIN = 1e-6
+
+    n_channels = np.shape(test)[0]
+    where_close = np.zeros_like(test, dtype=bool)
+
+    rtol = 10**(-1 * rtol)
+    baseline_offset = baseline - np.amin(baseline, axis=1, keepdims=True)
+    b_order_of_magnitude = np.floor(np.log10(baseline_offset + NUM_EPS))
+    # atol = 10**(-1 * atol)
+    # atol = max( atol, 1e-6 )
+    # atol[atol < ATOL_MIN] = ATOL_MIN
+    atol = 10**(np.amax(b_order_of_magnitude) - atol)
+    atol = max(atol, ATOL_MIN)
+    where_close = np.isclose(test, baseline, atol=atol, rtol=rtol)
+
+    where_not_nan = ~np.isnan(test)
+    where_not_inf = ~np.isinf(test)
+
+    # Return array of booleans indicating which channels are passing
+    return np.all(where_close * where_not_nan * where_not_inf, axis=1)
+
+
+def maxnorm(data, axis=0):
+    return np.linalg.norm(data, np.inf, axis=axis)
+
+
+def l2norm(data, axis=0):
+    return np.linalg.norm(data, 2, axis=axis)
+
+
+def calculate_relative_norm(testData, baselineData):
+    norm_diff = l2norm(testData - baselineData)
+    norm_baseline = l2norm(baselineData)
+
+    # replace any 0s with small number before for division
+    norm_baseline[norm_baseline == 0] = 1e-16
+
+    norm = norm_diff.copy()
+    ix_non_diff = (norm_baseline >= 1)
+    norm[ix_non_diff] = norm_diff[ix_non_diff] / norm_baseline[ix_non_diff]
+    return norm
+
+
+def calculate_max_norm_over_range(test_data, baseline_data):
+    channel_ranges = np.abs(baseline_data.max(
+        axis=0) - baseline_data.min(axis=0))
+    diff = abs(test_data - baseline_data)
+
+    ix_non_diff = (channel_ranges >= 1)
+    norm = maxnorm(diff, axis=0)
+    norm[ix_non_diff] = maxnorm(
+        diff[:, ix_non_diff] / channel_ranges[ix_non_diff])
+
+    return norm
+
+
+def calculate_max_norm(testData, baselineData):
+    return maxnorm(abs(testData - baselineData))
+
+
+def calculateNorms(test_data, baseline_data):
+    if test_data.size != baseline_data.size:
+        # print("Calculate Norms size(testdata)={}".format(test_data.size))
+        # print("Calculate Norms size(baseline)={}".format(baseline_data.size))
+        relative_norm = np.nan * \
+            calculate_max_norm_over_range(test_data, test_data)
+        max_norm = relative_norm
+        relative_l2_norm = relative_norm
+    else:
+        relative_norm = calculate_max_norm_over_range(test_data, baseline_data)
+        max_norm = calculate_max_norm(test_data, baseline_data)
+        relative_l2_norm = calculate_relative_norm(test_data, baseline_data)
+
+    results = np.stack(
+        (
+            relative_norm,
+            relative_l2_norm,
+            max_norm
+        ),
+        axis=1
+    )
+    return results
